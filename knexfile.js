@@ -1,27 +1,20 @@
 // Update with your config settings.
 var fs = require('fs');
 var path = require('path');
+var _ = require('lodash');
 
-// if (fs.existsSync('./config/local.js')) {
-//   var local = require('./config/local.js').connections.postgresql;
-//   var test = require('./config/local.js').testConnection;
-// } else {
-//   var local = {};
-// }
+if (!fs.existsSync('../../knexfile.js')) throw new Error('App must include a knex file');
 
-console.log(`----------happening!--------\n`, __dirname);
-console.log(`----------happening!--------\n`, path.resolve(__dirname));
-console.log(`----------happening!--------\n`, path.resolve('../'));
-
-module.exports = {
-
-  production: {
-    client: 'postgresql',
-    connection: '',
+const appConfig = require('../../knexfile');
+const config = _.mapValues(appConfig, env => {
+  const options = {
     migrations: {
-      tableName: 'db_migrations',
-      directory: 'db/migrations'
+      tableName: 'db_queue_migrations',
+      directory: 'migrations'
     }
-  }
+  };
 
-};
+  return _.assign({}, env, options);
+});
+
+module.exports = config;
