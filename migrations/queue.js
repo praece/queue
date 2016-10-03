@@ -5,6 +5,8 @@ exports.up = function(knex, Promise) {
     table.increments();
     table.text('queue');
     table.text('status');
+    table.datetime('updatedAt');
+    table.datetime('timeout');
     table.jsonb('meta');
   });
 };

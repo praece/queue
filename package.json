@@ -4,7 +4,7 @@
   "description": "A simple postgres based queue",
   "main": "index.js",
   "scripts": {
-    "test": "npm test",
+    "test": "NODE_ENV=test nodemon -x mocha test/**/*.test.js",
     "postinstall": "knex migrate:latest"
   },
   "repository": {
@@ -14,6 +14,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "knex": "^0.12.2"
+    "bluebird": "^3.4.6",
+    "create-error": "^0.3.1",
+    "knex": "^0.12.2",
+    "knex-cleaner": "^1.1.3",
+    "lodash": "^4.16.2",
+    "node-schedule": "^1.1.1",
+    "pg": "^6.1.0"
+  },
+  "devDependencies": {
+    "should": "^11.1.0"
   }
 }
