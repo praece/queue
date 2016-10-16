@@ -10,6 +10,7 @@ describe('Should test queue workflow', () => {
   it('Should queue 25 expenses', queueExpenses);
   it('Should queue 78 invoices', queueInvoices);
   it('Should get and complete a single expense', getExpense);
+  it('Should queue and get a high priority and low priority expense', queueHighPriorityExpense);
   it('Should get and error a single expense', errorExpense);
   it('Should get two expenses concurrently without duplication', getWithoutDuplication);
   // it('Should text expense timeout', testTimeout);
@@ -18,7 +19,7 @@ describe('Should test queue workflow', () => {
 
 function createQueue() {
   queues.expenses = new queue.Queue('xero_expense', { timeout: 5000 });
-  queues.invoices = new queue.Queue('xero_invoice', {});
+  queues.invoices = new queue.Queue('xero_invoice');
 }
 
 function queueExpenses() {
@@ -56,6 +57,15 @@ function getExpense() {
     .then(() => queues.expenses.count())
     .then(count => {
       should.equal(count, 0);
+    });
+}
+
+function queueHighPriorityExpense() {
+  return queues.expenses.add({ invoice: 'high priority' }, { priority: -1 })
+    .then(() => queues.expenses.add({ invoice: 'low priority' }, { priority: 1 }))
+    .then(() => queues.expenses.get())
+    .then(item => {
+      should.equal(item.meta.invoice, 'high priority');
     });
 }
 
