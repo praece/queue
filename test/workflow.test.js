@@ -1,7 +1,7 @@
 const Promise = require('bluebird');
 const _ = require('lodash');
 const should = require('should'); // eslint-disable-line no-unused-vars
-const queue = require('../index.js');
+const Queue = require('../index.js');
 const queues = {};
 
 /* eslint-disable no-unused-vars */
@@ -11,15 +11,15 @@ describe('Should test queue workflow', () => {
   it('Should queue 78 invoices', queueInvoices);
   it('Should get and complete a single expense', getExpense);
   it('Should queue and get a high priority and low priority expense', queueHighPriorityExpense);
-  it('Should get and error a single expense', errorExpense);
   it('Should get two expenses concurrently without duplication', getWithoutDuplication);
-  // it('Should text expense timeout', testTimeout);
+  it('Should retry an expense', retry);
+  it('Should text expense timeout', testTimeout);
 });
 /* eslint-enable no-unused-vars */
 
 function createQueue() {
-  queues.expenses = new queue.Queue('xero_expense', { timeout: 5000 });
-  queues.invoices = new queue.Queue('xero_invoice');
+  queues.expenses = new Queue('xero_expense');
+  queues.invoices = new Queue('xero_invoice');
 }
 
 function queueExpenses() {
@@ -69,19 +69,6 @@ function queueHighPriorityExpense() {
     });
 }
 
-function errorExpense(done) {
-  queue.config.onError = item => {
-    should.exist(item);
-
-    done();
-  };
-
-  queues.expenses.get()
-    .then(item => {
-      queues.expenses.error(item);
-    });
-}
-
 function getWithoutDuplication() {
   return Promise.all([
       queues.expenses.get(),
@@ -99,18 +86,35 @@ function getWithoutDuplication() {
     });
 }
 
-function textTimeout() {
-  this.timeout(71000);
-  let failures = 0;
+function retry(done) {
+  Queue.onError = (message, error) => {
+    should.equal(message, 'Too many retry attempts');
+    should.exist(error);
+    done();
+  };
 
-  queue.config.onTimeout = () => {
-    failures++;
-  }
+  Promise.resolve()
+    .then(() => queues.expenses.get())
+    .tap(item => queues.expenses.retry(item))
+    .then(item => queues.expenses.get({ where: { id: item.id } }))
+    .tap(item => queues.expenses.retry(item))
+    .then(item => queues.expenses.get({ where: { id: item.id } }))
+    .tap(item => queues.expenses.retry(item));
+}
 
-  return queues.expenses.get({ limit: 1000 })
-    .then(result => Promise.map(_.initial(result), queues.expenses.complete))
-    .delay(70000)
-    .then(() => {
-      should.equal(failures, 1, 'One item should have timed out!');
+function testTimeout() {
+  return Promise.resolve()
+    .then(() => queues.expenses.get({ timeout: -1000 }))
+    .tap(() => Promise.all([
+      Queue.checkTimeout(),
+      Queue.checkTimeout(),
+      Queue.checkTimeout(),
+      Queue.checkTimeout(),
+      Queue.checkTimeout(),
+      Queue.checkTimeout()
+    ]))
+    .then(item => queues.expenses.get({ where: { id: item.id } }))
+    .tap(item => {
+      should.equal(item.attempt, 2);
     });
 }
