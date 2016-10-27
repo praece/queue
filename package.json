@@ -1,6 +1,6 @@
 {
   "name": "praece-queue",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A simple postgres based queue",
   "main": "index.js",
   "scripts": {
