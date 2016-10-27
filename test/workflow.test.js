@@ -95,8 +95,12 @@ function retry(done) {
 
   Promise.resolve()
     .then(() => queues.expenses.get())
-    .tap(item => queues.expenses.retry(item))
+    .tap(item => queues.expenses.retry(item, { newValue: 'test' }))
     .then(item => queues.expenses.get({ where: { id: item.id } }))
+    .tap(item => {
+      // We should be able to update the meta data on a retry
+      should.equal(item.meta.newValue, 'test');
+    })
     .tap(item => queues.expenses.retry(item))
     .then(item => queues.expenses.get({ where: { id: item.id } }))
     .tap(item => queues.expenses.retry(item));
