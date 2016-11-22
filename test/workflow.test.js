@@ -10,6 +10,8 @@ describe('Should test queue workflow', () => {
   it('Should queue 25 expenses', queueExpenses);
   it('Should queue 78 invoices', queueInvoices);
   it('Should get and complete a single expense', getExpense);
+  it('Should find a single expense', findExpense);
+  it('Queue and get an invoice that depends on an expense', invoiceDependsOnExpense);
   it('Should queue and get a high priority and low priority expense', queueHighPriorityExpense);
   it('Should get two expenses concurrently without duplication', getWithoutDuplication);
   it('Should retry an expense', retry);
@@ -57,6 +59,53 @@ function getExpense() {
     .then(() => queues.expenses.count())
     .then(count => {
       should.equal(count, 0);
+    });
+}
+
+function findExpense() {
+  const options = {
+    where: function() {
+      this.where('meta', '@>', JSON.stringify({ expense: 5 }));
+    }
+  };
+
+  return queues.expenses.find(options)
+    .then(expense => {
+      should.exist(expense.status);
+      should.equal(expense.meta.expense, 5);
+    });
+}
+
+function invoiceDependsOnExpense() {
+  let expense;
+
+  return queues.expenses.get()
+    .then(expenseItem => {
+      expense = expenseItem;
+      return queues.invoices.add({ expense: expense.meta.expense }, { dependsOn: expense.id });
+    })
+    .then(() => {
+      return queues.invoices.get({ 
+        where: function() {
+          this.where('meta', '@>', JSON.stringify({ expense: expense.meta.expense }));
+        }
+      });
+    })
+    .then(invoice => {
+      should.equal(invoice.length, 0);
+
+      return queues.expenses.complete(expense);
+    })
+    .then(() => {
+      return queues.invoices.get({ 
+        where: function() {
+          this.where('meta', '@>', JSON.stringify({ expense: expense.meta.expense }));
+        }
+      });
+    })
+    .then(invoice => {
+      should.exist(invoice);
+      should.equal(invoice.meta.expense, expense.meta.expense);
     });
 }
 
