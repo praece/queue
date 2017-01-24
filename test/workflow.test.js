@@ -16,6 +16,8 @@ describe('Should test queue workflow', () => {
   it('Should get two expenses concurrently without duplication', getWithoutDuplication);
   it('Should retry an expense', retry);
   it('Should text expense timeout', testTimeout);
+  it('Should test canceling an item with a dependent', testCancel);
+  it('Should test purging the queue', testPurge);
 });
 /* eslint-enable no-unused-vars */
 
@@ -169,5 +171,51 @@ function testTimeout() {
     .then(item => queues.expenses.get({ where: { id: item.id } }))
     .tap(item => {
       should.equal(item.attempt, 2);
+    });
+}
+
+function testCancel() {
+  const ids = {};
+
+  return Promise.resolve()
+    .then(() => queues.expenses.add({ invoice: 'depended on' }))
+    .tap(parent => { ids.parent = parent[0]; })
+    .then(() => queues.expenses.add({ invoice: 'dependent' }, { dependsOn: ids.parent }))
+    .tap(child => { ids.child = child[0]; })
+    .tap(() => queues.expenses.cancel({ id: ids.parent }))
+    .then(() => queues.expenses.add({ invoice: 'later' }, { dependsOn: ids.parent }))
+    .tap(later => { ids.later = later[0]; })
+    .tap(Queue.checkDependents)
+    .then(() => {
+      const where = [ids.parent, ids.child, ids.later];
+      return queues.expenses.find({ limit: 3, where: q => q.whereIn('id', where) });
+    })
+    .then(items => {
+      _.forEach(items, item => {
+        should.equal(item.status, 'Canceled');
+      });
+    });
+}
+
+function testPurge() {
+  const where = q => q.whereIn('status', ['Complete', 'Canceled']);
+  const find = { limit: 1000, where };
+
+  return Promise.resolve()
+    .then(() => queues.expenses.find(find))
+    .then(items => {
+      items.length.should.be.above(0);
+    })
+    .tap(Queue.checkDependents)
+    .then(() => queues.expenses.find(find))
+    .then(items => {
+      items.length.should.be.above(0);
+
+      Queue.config.purgeInterval = 0;
+    })
+    .tap(Queue.purgeQueue)
+    .then(() => queues.expenses.find(find))
+    .then(items => {
+      should.equal(items.length, 0);
     });
 }
