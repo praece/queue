@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "NODE_ENV=test nodemon -x mocha test/**/*.test.js",
-    "postinstall": "knex migrate:latest"
+    "postinstall": "npx knex migrate:latest"
   },
   "repository": {
     "type": "git",
