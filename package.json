@@ -20,7 +20,7 @@
     "knex": "^0.12.2",
     "knex-cleaner": "^1.1.3",
     "lodash": "^4.16.2",
-    "pg": "^6.4.2",
+    "pg": "^6.4.2"
   },
   "devDependencies": {
     "should": "^11.1.0"
